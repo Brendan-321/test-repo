@@ -7,6 +7,7 @@ const FriendsScreen = () => {
     { id: 1, name: "Adam Erickson" },
     { id: 2, name: "Jane Doe" },
     { id: 3, name: "John Smith" },
+    { id: 4, name: "Ivan Coetzee" },
   ]);
 
   const removeFriend = (id) => {
