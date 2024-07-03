@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   TextInput,
@@ -8,29 +8,66 @@ import {
   Text,
   Modal,
   SafeAreaView,
+  Platform,
 } from "react-native";
 import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
 import { useNavigation } from "@react-navigation/native";
+import * as Location from 'expo-location';
 
 const HomeScreen = () => {
   const navigation = useNavigation();
   const [modalVisible, setModalVisible] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState("");
+  const [currentLocation, setCurrentLocation] = useState(null);
   const [destination, setDestination] = useState("");
   const [showPickupPoints, setShowPickupPoints] = useState(false);
+  const [locationAddress, setLocationAddress] = useState('');
 
-  const pickupPoints = [
-    { latitude: -26.192, longitude: 28.029, title: "safespot1" },
-    { latitude: -26.193, longitude: 28.031, title: "safespot2" },
-    { latitude: -26.191, longitude: 28.033, title: "safespot3" },
-  ];
+  useEffect(() => {
+    const requestLocationPermission = async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.error('Permission to access location was denied');
+        return;
+      }
+      getCurrentLocation();
+    };
 
-  const yourLocation = {
-    latitude: -26.19,
-    longitude: 28.032,
-    title: "Your Location",
-    pinColor: "blue",
-  };
+    const getCurrentLocation = async () => {
+      let location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+        timeInterval: 10000,
+        distanceInterval: 10,
+      });
+      const { latitude, longitude } = location.coords;
+      setCurrentLocation({ latitude, longitude });
+
+      // Reverse geocoding
+      let address = await Location.reverseGeocodeAsync({ latitude, longitude });
+      const formattedAddress = address[0]
+        ? `${address[0].street}, ${address[0].city}, ${address[0].region}, ${address[0].country}`
+        : 'Location not available';
+      setLocationAddress(formattedAddress);
+
+      // Optionally start watching location changes
+      Location.watchPositionAsync({
+        accuracy: Location.Accuracy.High,
+        timeInterval: 10000,
+        distanceInterval: 10,
+      }, async (position) => {
+        const { latitude, longitude } = position.coords;
+        setCurrentLocation({ latitude, longitude });
+
+        // Reverse geocoding
+        let address = await Location.reverseGeocodeAsync({ latitude, longitude });
+        const formattedAddress = address[0]
+          ? `${address[0].street}, ${address[0].city}, ${address[0].region}, ${address[0].country}`
+          : 'Location not available';
+        setLocationAddress(formattedAddress);
+      });
+    };
+
+    requestLocationPermission();
+  }, []);
 
   const navigateToSettings = () => {
     navigation.navigate("Menu");
@@ -70,29 +107,26 @@ const HomeScreen = () => {
           latitudeDelta: 0.0922,
           longitudeDelta: 0.0421,
         }}
+        region={
+          currentLocation
+            ? {
+                latitude: currentLocation.latitude,
+                longitude: currentLocation.longitude,
+                latitudeDelta: 0.015,
+                longitudeDelta: 0.0121,
+              }
+            : undefined
+        }
       >
-        {showPickupPoints && (
-          <>
-            {pickupPoints.map((point, index) => (
-              <Marker
-                key={index}
-                coordinate={{
-                  latitude: point.latitude,
-                  longitude: point.longitude,
-                }}
-                title={point.title}
-                pinColor="red" // Default color
-              />
-            ))}
-            <Marker
-              coordinate={{
-                latitude: yourLocation.latitude,
-                longitude: yourLocation.longitude,
-              }}
-              title={yourLocation.title}
-              pinColor={yourLocation.pinColor} // Different color for your location
-            />
-          </>
+        {currentLocation && (
+          <Marker
+            coordinate={{
+              latitude: currentLocation.latitude,
+              longitude: currentLocation.longitude,
+            }}
+            title="Your Location"
+            pinColor="blue"
+          />
         )}
       </MapView>
       <View style={styles.searchContainer}>
@@ -161,9 +195,10 @@ const HomeScreen = () => {
                 <TextInput
                   style={styles.textInput}
                   placeholder="Your Current Location"
-                  value={currentLocation}
+                  value={locationAddress || 'Fetching address...'}
                   onChangeText={setCurrentLocation}
                   clearButtonMode="while-editing"
+                  editable={false}
                 />
                 <Image
                   source={require("./assets/location.png")}
