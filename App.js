@@ -26,7 +26,11 @@ const App = () => {
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Login">
         <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{ headershown: false }}
+        />
         <Stack.Screen name="Menu" component={MenuScreen} />
         <Stack.Screen name="Safety" component={SafetyScreen} />
         <Stack.Screen name="Load Credits" component={LoadCreditsScreen} />

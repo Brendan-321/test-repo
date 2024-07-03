@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
 import { useNavigation } from "@react-navigation/native";
-import * as Location from 'expo-location';
+import * as Location from "expo-location";
 
 const HomeScreen = () => {
   const navigation = useNavigation();
@@ -20,13 +20,13 @@ const HomeScreen = () => {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [destination, setDestination] = useState("");
   const [showPickupPoints, setShowPickupPoints] = useState(false);
-  const [locationAddress, setLocationAddress] = useState('');
+  const [locationAddress, setLocationAddress] = useState("");
 
   useEffect(() => {
     const requestLocationPermission = async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        console.error('Permission to access location was denied');
+      if (status !== "granted") {
+        console.error("Permission to access location was denied");
         return;
       }
       getCurrentLocation();
@@ -45,25 +45,31 @@ const HomeScreen = () => {
       let address = await Location.reverseGeocodeAsync({ latitude, longitude });
       const formattedAddress = address[0]
         ? `${address[0].street}, ${address[0].city}, ${address[0].region}, ${address[0].country}`
-        : 'Location not available';
+        : "Location not available";
       setLocationAddress(formattedAddress);
 
       // Optionally start watching location changes
-      Location.watchPositionAsync({
-        accuracy: Location.Accuracy.High,
-        timeInterval: 10000,
-        distanceInterval: 10,
-      }, async (position) => {
-        const { latitude, longitude } = position.coords;
-        setCurrentLocation({ latitude, longitude });
+      Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 10000,
+          distanceInterval: 10,
+        },
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          setCurrentLocation({ latitude, longitude });
 
-        // Reverse geocoding
-        let address = await Location.reverseGeocodeAsync({ latitude, longitude });
-        const formattedAddress = address[0]
-          ? `${address[0].street}, ${address[0].city}, ${address[0].region}, ${address[0].country}`
-          : 'Location not available';
-        setLocationAddress(formattedAddress);
-      });
+          // Reverse geocoding
+          let address = await Location.reverseGeocodeAsync({
+            latitude,
+            longitude,
+          });
+          const formattedAddress = address[0]
+            ? `${address[0].street}, ${address[0].city}, ${address[0].region}, ${address[0].country}`
+            : "Location not available";
+          setLocationAddress(formattedAddress);
+        }
+      );
     };
 
     requestLocationPermission();
@@ -195,7 +201,7 @@ const HomeScreen = () => {
                 <TextInput
                   style={styles.textInput}
                   placeholder="Your Current Location"
-                  value={locationAddress || 'Fetching address...'}
+                  value={locationAddress || "Fetching address..."}
                   onChangeText={setCurrentLocation}
                   clearButtonMode="while-editing"
                   editable={false}
