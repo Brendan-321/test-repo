@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Instagram Focus</string>
+    <string name="service_description">Sends you back to your Instagram home feed whenever the Search/Explore or Reels tab opens. It only looks at the Instagram app and doesn\'t collect or send any data.</string>
+</resources>

@@ -1,5 +1,5 @@
 # Instagram Focus
 
-A browser extension that blocks Instagram's Search/Explore and Reels pages, so only your home feed is left.
+An Android app that keeps the Instagram app on your home feed by blocking the Search/Explore and Reels tabs. Your laptop isn't affected.
 
-See [instagram-focus-extension/README.md](instagram-focus-extension/README.md) for install steps.
+See [instagram-focus-android/README.md](instagram-focus-android/README.md) to install it.
