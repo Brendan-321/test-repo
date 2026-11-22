@@ -8,10 +8,10 @@ android {
 
     defaultConfig {
         applicationId "com.instagramfocus"
-        minSdk 26
+        minSdk 27
         targetSdk 35
-        versionCode 3
-        versionName "1.2"
+        versionCode 4
+        versionName "1.3"
     }
 
     // Release signing key lives outside the repo (see README: "Signing key").

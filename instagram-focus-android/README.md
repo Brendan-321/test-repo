@@ -25,21 +25,29 @@ The app has two switches, both on by default:
 It uses Android's accessibility feature, which lets an app see what's on screen. It's set up so it can only see the Instagram app (`res/xml/focus_service.xml`). The only things it ever does are tap Instagram's Home tab or press Back.
 
 ## Security
-Accessibility access is powerful, so the app is locked down:
+Accessibility access is powerful, so the app is built to be useless to an attacker.
+
+**What it can do:** see the Instagram app's screen, and tap Instagram's Home tab or press Back. That's all.
+
+**Protections**
 - **No permissions at all.** In particular it has no internet permission, so it can't send anything off your phone. The manifest also strips network permissions if a library ever tries to add them.
-- **Only sees Instagram.** Events are limited to `com.instagram.android`, and the service checks that Instagram is on screen before every action. It doesn't ask to see other apps' windows.
-- **Nothing stored but two on/off switches.** These are kept in private app storage and excluded from cloud backups and device transfers.
-- **Nothing other apps can talk to.** The blocking service isn't exported and only Android itself can connect to it. The settings screen accepts no input from other apps.
-- **Release build.** Not debuggable, code shrunk and obfuscated, signed with a private release key.
-- **Pinned build tool.** The Gradle download is verified against its SHA-256 checksum.
+- **Only sees Instagram.** Events are limited to `com.instagram.android`, the service checks that Instagram is on screen before every action, and it doesn't ask to see other apps' windows.
+- **Other people's content can't steer it.** It finds tabs by Instagram's internal view IDs. The backups that match labels like "Reels" or "Home" are only trusted inside the tab-bar strip at the bottom of the screen, so a stranger's post, comment or alt text can't make it tap anything.
+- **Nothing other apps can talk to.** The blocking service isn't exported and only Android itself can connect to it. The settings screen accepts no input from other apps, ignores taps while another app draws over it (tapjacking), and can't have other apps' screens slipped into its task (task hijacking).
+- **Nothing stored but two on/off switches.** These are kept in private app storage and excluded from cloud backups and device transfers. Screen content is only looked at in memory and never saved or logged.
+- **Release build.** Not debuggable (so it can't be inspected or controlled over USB), code shrunk and obfuscated, no third-party libraries, signed with a private release key.
+- **Checked build tools.** The Gradle download and wrapper are verified against official checksums, and Android lint reports no issues.
 
-The biggest risk to watch for is a **fake copy**. Only install `InstagramFocus.apk` from this repo, and only grant Accessibility access to an app you trust.
+**What it can't protect against**
+- **A fake copy.** Someone could build a look-alike "Instagram Focus" that does read your screen. Only install `InstagramFocus.apk` from this repo, and check its signing-key fingerprint (below) if you're unsure.
+- **Your GitHub account.** Anyone who can push to this repo could swap the APK. Turn on two-factor authentication on GitHub.
+- **Someone with your unlocked phone.** They could switch blocking off or uninstall it, but they can't use this app to read anything. A phone lock screen is your real protection.
+- **A phone that is already compromised.** If your phone has been rooted by malware, no app can protect itself.
 
-## Limitations
-- **Reels outside the Reels tab still play.** That includes reels in your home feed and reels friends send in DMs. Only the tab is blocked.
-- **Instagram updates could break it.** The app finds the tabs by Instagram's internal names, with backups that use their English labels. If an update changes both, blocking stops working until the app is updated.
-- **You can turn it off.** Switching off the accessibility setting disables it. There's no lock.
-- **Updates may need a reinstall.** If a new version won't install over the old one, uninstall the old one first. (Version 1.2 is the first with the release key, so going from 1.0 or 1.1 to 1.2 needs one uninstall.)
+**Check an APK is genuine:** on a computer with the Android SDK, run `apksigner verify --print-certs InstagramFocus.apk`. The SHA-256 certificate digest must be:
+```
+c1322a85abc0044b2993d3b4c13ae32b5573c04ef684f1deacec382d38e52891
+```
 
 ## Signing key
 Release builds are signed with a private key that is **not** in this repo. To build a release that installs as an update over your current app, put the key file and a `keystore.properties` next to this README:

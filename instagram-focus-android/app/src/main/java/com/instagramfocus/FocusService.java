@@ -1,6 +1,7 @@
 package com.instagramfocus;
 
 import android.accessibilityservice.AccessibilityService;
+import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
@@ -24,6 +25,15 @@ public class FocusService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
+        try {
+            handleEvent(event);
+        } catch (RuntimeException e) {
+            // Screen elements can go stale mid-lookup while Instagram redraws. Ignore and carry on
+            // rather than crash; the next event re-checks the screen.
+        }
+    }
+
+    private void handleEvent(AccessibilityEvent event) {
         if (event.getPackageName() == null
                 || !FocusRules.IG_PACKAGE.contentEquals(event.getPackageName())) {
             return;
@@ -34,11 +44,12 @@ public class FocusService extends AccessibilityService {
             AccessibilityNodeInfo source = event.getSource();
             if (source != null) {
                 FocusRules.Tab tapped = FocusRules.fromViewId(source.getViewIdResourceName());
-                if (tapped == FocusRules.Tab.OTHER) {
+                AccessibilityNodeInfo root = getRootInActiveWindow();
+                if (tapped == FocusRules.Tab.OTHER && isInTabBar(source, root)) {
                     tapped = FocusRules.fromExactLabel(source.getContentDescription());
                 }
                 if (isBlocked(tapped)) {
-                    goHome(getRootInActiveWindow());
+                    goHome(root);
                     return;
                 }
             }
@@ -53,9 +64,13 @@ public class FocusService extends AccessibilityService {
 
     private void checkCurrentTab() {
         checkScheduled = false;
-        AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (!isInstagram(root)) return;
-        if (isBlocked(selectedTab(root))) goHome(root);
+        try {
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+            if (!isInstagram(root)) return;
+            if (isBlocked(selectedTab(root))) goHome(root);
+        } catch (RuntimeException e) {
+            // Stale screen elements; the next event re-checks.
+        }
     }
 
     /** Works out which bottom-bar tab is selected, by view ID first and by label as a fallback. */
@@ -76,7 +91,7 @@ public class FocusService extends AccessibilityService {
         for (String label : new String[] {"Search and explore", "Search", "Explore", "Reels"}) {
             for (AccessibilityNodeInfo node : root.findAccessibilityNodeInfosByText(label)) {
                 FocusRules.Tab tab = FocusRules.fromExactLabel(node.getContentDescription());
-                if (tab != FocusRules.Tab.OTHER && node.isSelected()) return tab;
+                if (tab != FocusRules.Tab.OTHER && node.isSelected() && isInTabBar(node, root)) return tab;
             }
         }
         return FocusRules.Tab.OTHER;
@@ -111,11 +126,22 @@ public class FocusService extends AccessibilityService {
         }
         for (AccessibilityNodeInfo node : root.findAccessibilityNodeInfosByText("Home")) {
             if (FocusRules.fromExactLabel(node.getContentDescription()) == FocusRules.Tab.HOME
+                    && isInTabBar(node, root)
                     && clickSelfOrParent(node)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** Only trust label matches for nodes inside the tab-bar strip (see FocusRules.isInTabBarRegion). */
+    private static boolean isInTabBar(AccessibilityNodeInfo node, AccessibilityNodeInfo root) {
+        if (node == null || root == null) return false;
+        Rect n = new Rect();
+        Rect w = new Rect();
+        node.getBoundsInScreen(n);
+        root.getBoundsInScreen(w);
+        return FocusRules.isInTabBarRegion(n.top, n.bottom, w.top, w.bottom);
     }
 
     private static boolean clickSelfOrParent(AccessibilityNodeInfo node) {

@@ -53,6 +53,22 @@ final class FocusRules {
         }
     }
 
+    /** Instagram's tab bar is a thin strip at the very bottom of its window. */
+    static final float TAB_BAR_REGION = 0.15f;
+
+    /**
+     * True if a node sits entirely inside the bottom strip of the window where the tab bar lives.
+     * Label-based fallbacks are only trusted there, because posts, comments and messages (which
+     * other people control, e.g. a post's alt text) can carry any label but never appear inside
+     * the tab bar itself.
+     */
+    static boolean isInTabBarRegion(int nodeTop, int nodeBottom, int windowTop, int windowBottom) {
+        int height = windowBottom - windowTop;
+        if (height <= 0 || nodeBottom <= nodeTop) return false;
+        float regionTop = windowBottom - height * TAB_BAR_REGION;
+        return nodeTop >= regionTop && nodeBottom <= windowBottom;
+    }
+
     static boolean isBlocked(Tab tab, boolean blockSearch, boolean blockReels) {
         return (tab == Tab.SEARCH && blockSearch) || (tab == Tab.REELS && blockReels);
     }

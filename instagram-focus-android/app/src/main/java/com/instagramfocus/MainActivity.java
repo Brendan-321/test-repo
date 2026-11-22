@@ -43,6 +43,9 @@ public class MainActivity extends Activity {
         drawBehindSystemBars();
 
         ScrollView scroll = new ScrollView(this);
+        // Ignore taps while another app draws over this screen (stops "tapjacking" tricks that
+        // could get you to flip a switch without knowing).
+        scroll.setFilterTouchesWhenObscured(true);
         scroll.setClipToPadding(false);
         scroll.setFillViewport(true);
 

@@ -34,6 +34,18 @@ public class FocusRulesTest {
         assertEquals(Tab.OTHER, FocusRules.fromExactLabel("Home workout tips"));
     }
 
+    @Test public void onlyTrustsLabelsInTheTabBarStrip() {
+        // Window from y=0 to y=2400; tab bar sits at the bottom (~2250-2400).
+        assertTrue(FocusRules.isInTabBarRegion(2260, 2390, 0, 2400));
+        // A post in the feed whose alt text says "Reels" or "Home" must not count.
+        assertFalse(FocusRules.isInTabBarRegion(800, 1600, 0, 2400));
+        // A tall element that merely reaches into the strip doesn't count either.
+        assertFalse(FocusRules.isInTabBarRegion(1900, 2400, 0, 2400));
+        // Nonsense bounds are rejected.
+        assertFalse(FocusRules.isInTabBarRegion(2300, 2300, 0, 2400));
+        assertFalse(FocusRules.isInTabBarRegion(2300, 2390, 0, 0));
+    }
+
     @Test public void respectsSettings() {
         assertTrue(FocusRules.isBlocked(Tab.SEARCH, true, true));
         assertTrue(FocusRules.isBlocked(Tab.REELS, true, true));
