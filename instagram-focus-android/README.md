@@ -2,6 +2,12 @@
 
 A small Android app that keeps the **Instagram app** on your home feed. If the **Search/Explore** or **Reels** tab opens, it taps Home for you straight away. Your laptop isn't affected, so search for people there.
 
+<p>
+  <img src="screenshots/icon.png" width="96" alt="App icon" />&nbsp;
+  <img src="screenshots/dark-off.png" width="240" alt="Dark mode, blocking off" />&nbsp;
+  <img src="screenshots/light-on.png" width="240" alt="Light mode, blocking on" />
+</p>
+
 ## Install
 1. On your phone, download [`InstagramFocus.apk`](InstagramFocus.apk) (open it on GitHub and tap the download button).
 2. Open the downloaded file. If Android asks, allow your browser or file app to **install unknown apps**, then tap **Install**.
@@ -29,3 +35,5 @@ It uses Android's accessibility feature, which lets an app see what's on screen.
 ./gradlew testDebugUnitTest assembleDebug
 ```
 This needs the Android SDK (`sdk.dir` in `local.properties`). The APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
+
+The unit tests include `ScreenshotTest`, which uses Robolectric to render the settings screen (light and dark, blocking on and off) and the launcher icon to `app/build/screenshots/`.

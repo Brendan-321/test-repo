@@ -10,8 +10,16 @@ android {
         applicationId "com.instagramfocus"
         minSdk 26
         targetSdk 35
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1"
+    }
+
+    testOptions {
+        unitTests.includeAndroidResources = true
+        unitTests.all {
+            // Robolectric downloads Android system images at test time; use the same mirror as settings.gradle.
+            systemProperty "robolectric.dependency.repo.url", "https://maven-central.storage-download.googleapis.com/maven2"
+        }
     }
 
     compileOptions {
@@ -22,4 +30,5 @@ android {
 
 dependencies {
     testImplementation "junit:junit:4.13.2"
+    testImplementation "org.robolectric:robolectric:4.14.1"
 }
