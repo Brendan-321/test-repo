@@ -54,10 +54,7 @@ public class FocusService extends AccessibilityService {
     private void checkCurrentTab() {
         checkScheduled = false;
         AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null || root.getPackageName() == null
-                || !FocusRules.IG_PACKAGE.contentEquals(root.getPackageName())) {
-            return;
-        }
+        if (!isInstagram(root)) return;
         if (isBlocked(selectedTab(root))) goHome(root);
     }
 
@@ -86,11 +83,13 @@ public class FocusService extends AccessibilityService {
     }
 
     private void goHome(AccessibilityNodeInfo root) {
+        // Only ever act while Instagram is the app on screen.
+        if (!isInstagram(root)) return;
         long now = SystemClock.uptimeMillis();
         if (now - lastRedirectAt < REDIRECT_COOLDOWN_MS) return;
         lastRedirectAt = now;
 
-        if (root != null && clickHomeTab(root)) return;
+        if (clickHomeTab(root)) return;
         // Couldn't find the Home button: leave the blocked screen with Back instead.
         performGlobalAction(GLOBAL_ACTION_BACK);
     }
@@ -124,6 +123,11 @@ public class FocusService extends AccessibilityService {
             if (node.isClickable()) return node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
         }
         return false;
+    }
+
+    private static boolean isInstagram(AccessibilityNodeInfo root) {
+        return root != null && root.getPackageName() != null
+                && FocusRules.IG_PACKAGE.contentEquals(root.getPackageName());
     }
 
     private boolean isBlocked(FocusRules.Tab tab) {
