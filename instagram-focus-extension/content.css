@@ -1,0 +1,16 @@
+/* Search / Explore entry points (desktop sidebar + mobile bottom bar) */
+html.igf-block-search a[href="/explore/"],
+html.igf-block-search a:has(svg[aria-label="Search"]),
+html.igf-block-search a:has(svg[aria-label="Explore"]),
+html.igf-block-search [role="link"]:has(svg[aria-label="Search"]),
+html.igf-block-search [role="button"]:has(svg[aria-label="Search"]),
+html.igf-block-search input[aria-label="Search input"],
+html.igf-block-search input[placeholder="Search"] {
+  display: none !important;
+}
+
+/* Reels tab */
+html.igf-block-reels a[href="/reels/"],
+html.igf-block-reels a:has(svg[aria-label="Reels"]) {
+  display: none !important;
+}
