@@ -5,7 +5,8 @@ A small Android app that keeps the **Instagram app** on your home feed. If the *
 <p>
   <img src="screenshots/icon.png" width="96" alt="App icon" />&nbsp;
   <img src="screenshots/dark-off.png" width="240" alt="Dark mode, blocking off" />&nbsp;
-  <img src="screenshots/light-on.png" width="240" alt="Light mode, blocking on" />
+  <img src="screenshots/light-on.png" width="240" alt="Light mode, blocking on" />&nbsp;
+  <img src="screenshots/light-locked.png" width="240" alt="Settings locked" />
 </p>
 
 ## Install
@@ -21,6 +22,15 @@ The app has two switches, both on by default:
 - **Block Search & Explore**
 - **Block Reels tab**
 
+## Lock
+You can lock your settings so blocking is hard to switch off on impulse:
+- Choose a waiting period (15 minutes, 30 minutes, 1 hour or 4 hours) and tap **Lock settings**.
+- While locked you can still turn blocks **on**, but not off.
+- To turn a block off, tap **Request unlock** and wait. You then get 5 minutes to make changes before it locks again by itself. You can cancel the unlock at any time.
+- Moving the phone's clock forward doesn't skip the wait.
+
+The lock is inside the app only. Android's own Settings can still switch off the Accessibility service, clear the app's storage or uninstall it, so it's a strong speed bump rather than a wall. (Watching Android's Settings screens to block that was left out on purpose, so the app keeps seeing only Instagram.)
+
 ## How it works
 It uses Android's accessibility feature, which lets an app see what's on screen. It's set up so it can only see the Instagram app (`res/xml/focus_service.xml`). The only things it ever does are tap Instagram's Home tab or press Back.
 
@@ -34,7 +44,7 @@ Accessibility access is powerful, so the app is built to be useless to an attack
 - **Only sees Instagram.** Events are limited to `com.instagram.android`, the service checks that Instagram is on screen before every action, and it doesn't ask to see other apps' windows.
 - **Other people's content can't steer it.** It finds tabs by Instagram's internal view IDs. The backups that match labels like "Reels" or "Home" are only trusted inside the tab-bar strip at the bottom of the screen, so a stranger's post, comment or alt text can't make it tap anything.
 - **Nothing other apps can talk to.** The blocking service isn't exported and only Android itself can connect to it. The settings screen accepts no input from other apps, ignores taps while another app draws over it (tapjacking), and can't have other apps' screens slipped into its task (task hijacking).
-- **Nothing stored but two on/off switches.** These are kept in private app storage and excluded from cloud backups and device transfers. Screen content is only looked at in memory and never saved or logged.
+- **Nothing stored but your settings** (the two switches and the lock timer). These are kept in private app storage and excluded from cloud backups and device transfers. Screen content is only looked at in memory and never saved or logged.
 - **Release build.** Not debuggable (so it can't be inspected or controlled over USB), code shrunk and obfuscated, no third-party libraries, signed with a private release key.
 - **Checked build tools.** The Gradle download and wrapper are verified against official checksums, and Android lint reports no issues.
 

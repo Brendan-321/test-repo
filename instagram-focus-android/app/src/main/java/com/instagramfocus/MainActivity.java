@@ -11,6 +11,8 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.view.Gravity;
@@ -22,6 +24,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
 
 /** The settings screen: shows whether blocking is on and lets you choose what to block. */
 public class MainActivity extends Activity {
@@ -36,6 +39,24 @@ public class MainActivity extends Activity {
     private TextView statusBody;
     private TextView statusButton;
     private View setupSection;
+    private boolean serviceOn;
+    private boolean syncingSwitches;
+
+    private Switch searchSwitch;
+    private Switch reelsSwitch;
+    private TextView lockTitle;
+    private TextView lockBody;
+    private LinearLayout waitChips;
+    private TextView lockPrimary;
+    private TextView lockSecondary;
+
+    private final Handler ticker = new Handler(Looper.getMainLooper());
+    private final Runnable tick = new Runnable() {
+        @Override public void run() {
+            refreshLock();
+            ticker.postDelayed(this, 1000);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +89,8 @@ public class MainActivity extends Activity {
         content.addView(statusCard(), margins(0, dp(24), 0, 0));
         content.addView(sectionLabel("WHAT TO BLOCK"), margins(dp(4), dp(28), 0, dp(10)));
         content.addView(blockOptions());
+        content.addView(sectionLabel("LOCK"), margins(dp(4), dp(28), 0, dp(10)));
+        content.addView(lockCard());
         setupSection = setupSteps();
         content.addView(setupSection, margins(0, dp(28), 0, 0));
         content.addView(footer(), margins(0, dp(28), 0, 0));
@@ -78,7 +101,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        boolean on = isServiceEnabled();
+        boolean on = serviceOn = isServiceEnabled();
         statusCard.setBackground(gradient(on ? GREEN_START : ORANGE_START,
                 on ? GREEN_END : ORANGE_END, dp(24)));
         statusTitle.setText(on ? "Blocking is on" : "Blocking is off");
@@ -88,6 +111,19 @@ public class MainActivity extends Activity {
         statusButton.setText(on ? "Accessibility settings" : "Turn on");
         statusButton.setTextColor(on ? GREEN_END : ORANGE_END);
         setupSection.setVisibility(on ? View.GONE : View.VISIBLE);
+        // Pick up changes made elsewhere (e.g. switches that were locked last time).
+        syncingSwitches = true;
+        searchSwitch.setChecked(Prefs.blockSearch(this));
+        reelsSwitch.setChecked(Prefs.blockReels(this));
+        syncingSwitches = false;
+        ticker.removeCallbacks(tick);
+        tick.run();
+    }
+
+    @Override
+    protected void onPause() {
+        ticker.removeCallbacks(tick);
+        super.onPause();
     }
 
     // ---- Sections -------------------------------------------------------------------------
@@ -151,17 +187,19 @@ public class MainActivity extends Activity {
 
     private View blockOptions() {
         LinearLayout card = card();
+        searchSwitch = new Switch(this);
         card.addView(optionRow(R.drawable.ic_search, "Search & Explore",
-                "Can't look people up or browse Explore", Prefs.BLOCK_SEARCH, Prefs.blockSearch(this)));
+                "Can't look people up or browse Explore", Prefs.BLOCK_SEARCH, searchSwitch));
         View divider = new View(this);
         divider.setBackgroundColor(color(R.color.divider));
         card.addView(divider, margins(dp(72), 0, 0, 0, dp(1)));
+        reelsSwitch = new Switch(this);
         card.addView(optionRow(R.drawable.ic_reels, "Reels tab",
-                "No endless short videos", Prefs.BLOCK_REELS, Prefs.blockReels(this)));
+                "No endless short videos", Prefs.BLOCK_REELS, reelsSwitch));
         return card;
     }
 
-    private View optionRow(int iconRes, String title, String subtitle, String key, boolean checked) {
+    private View optionRow(int iconRes, String title, String subtitle, String key, Switch sw) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -183,16 +221,139 @@ public class MainActivity extends Activity {
         texts.addView(text(subtitle, 13, color(R.color.text_secondary)), margins(0, dp(2), 0, 0));
         row.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
-        Switch sw = new Switch(this);
-        sw.setChecked(checked);
+        sw.setChecked(Prefs.get(this).getBoolean(key, true));
         sw.setContentDescription(title);
-        sw.setOnCheckedChangeListener((b, isChecked) ->
-                Prefs.get(this).edit().putBoolean(key, isChecked).apply());
+        sw.setOnCheckedChangeListener((b, isChecked) -> {
+            if (syncingSwitches) return;
+            // Turning a block on always works. Turning it off needs the lock to be open.
+            if (!isChecked && !FocusLock.canTurnOff(Prefs.lockStatus(this).phase)) {
+                b.setChecked(true);
+                Toast.makeText(this, "Settings are locked. Request an unlock below first.",
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            Prefs.get(this).edit().putBoolean(key, isChecked).apply();
+        });
         row.addView(sw);
 
         row.setOnClickListener(v -> sw.toggle());
         row.setBackground(pressable(null, dp(20)));
         return row;
+    }
+
+    private View lockCard() {
+        LinearLayout card = card();
+        card.setPadding(dp(20), dp(18), dp(20), dp(18));
+
+        lockTitle = text("", 18, color(R.color.text_primary));
+        lockTitle.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        card.addView(lockTitle);
+
+        lockBody = text("", 14, color(R.color.text_secondary));
+        lockBody.setLineSpacing(0, 1.15f);
+        card.addView(lockBody, margins(0, dp(4), 0, 0));
+
+        waitChips = new LinearLayout(this);
+        waitChips.setOrientation(LinearLayout.HORIZONTAL);
+        for (int minutes : FocusLock.WAIT_CHOICES_MIN) {
+            TextView chip = text(minutes < 60 ? minutes + " min" : (minutes / 60) + " h", 14, 0);
+            chip.setTag(minutes);
+            chip.setGravity(Gravity.CENTER);
+            chip.setPadding(0, dp(9), 0, dp(9));
+            chip.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+            chip.setOnClickListener(v -> {
+                Prefs.setLockWaitMinutes(this, minutes);
+                refreshLock();
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+            lp.setMargins(0, 0, dp(8), 0);
+            waitChips.addView(chip, lp);
+        }
+        card.addView(waitChips, margins(0, dp(14), -dp(8), 0));
+
+        lockPrimary = text("", 15, Color.WHITE);
+        lockPrimary.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        lockPrimary.setGravity(Gravity.CENTER);
+        lockPrimary.setPadding(dp(20), dp(13), dp(20), dp(13));
+        lockPrimary.setOnClickListener(v -> onLockPrimary());
+        card.addView(lockPrimary, margins(0, dp(16), 0, 0));
+
+        lockSecondary = text("Remove lock", 14, color(R.color.text_secondary));
+        lockSecondary.setGravity(Gravity.CENTER);
+        lockSecondary.setPadding(0, dp(12), 0, dp(2));
+        lockSecondary.setOnClickListener(v -> {
+            Prefs.setLockEnabled(this, false);
+            refreshLock();
+        });
+        card.addView(lockSecondary);
+        return card;
+    }
+
+    private void onLockPrimary() {
+        switch (Prefs.lockStatus(this).phase) {
+            case OFF:
+            case UNLOCKED:
+                Prefs.setLockEnabled(this, true);
+                Toast.makeText(this, "Locked. Stay focused!", Toast.LENGTH_SHORT).show();
+                break;
+            case LOCKED:
+                Prefs.requestUnlock(this);
+                break;
+            case WAITING:
+                Prefs.clearUnlockRequest(this);
+                Toast.makeText(this, "Unlock cancelled. Nice one.", Toast.LENGTH_SHORT).show();
+                break;
+        }
+        refreshLock();
+    }
+
+    private void refreshLock() {
+        Prefs.LockStatus st = Prefs.lockStatus(this);
+        int waitMin = Prefs.lockWaitMinutes(this);
+        String wait = FocusLock.formatWait(waitMin);
+        boolean chooseWait = st.phase == FocusLock.Phase.OFF || st.phase == FocusLock.Phase.UNLOCKED;
+
+        switch (st.phase) {
+            case OFF:
+                lockTitle.setText("Lock your settings");
+                lockBody.setText("Once locked, turning a block off means waiting " + wait
+                        + " first. Turning blocks on always works.");
+                lockPrimary.setText("Lock settings");
+                break;
+            case LOCKED:
+                lockTitle.setText("🔒 Settings locked");
+                lockBody.setText("To turn a block off, request an unlock and wait " + wait + ".");
+                lockPrimary.setText("Request unlock");
+                break;
+            case WAITING:
+                lockTitle.setText("⏳ Unlocking in " + FocusLock.formatRemaining(st.remainingMs));
+                lockBody.setText("Still want to? The urge usually passes. You can cancel any time.");
+                lockPrimary.setText("Cancel unlock");
+                break;
+            case UNLOCKED:
+                lockTitle.setText("🔓 Unlocked for " + FocusLock.formatRemaining(st.remainingMs));
+                lockBody.setText("Make your changes now. It locks again by itself.");
+                lockPrimary.setText("Lock now");
+                break;
+        }
+        boolean accentButton = st.phase != FocusLock.Phase.WAITING;
+        lockPrimary.setTextColor(accentButton ? Color.WHITE : color(R.color.accent));
+        lockPrimary.setBackground(pressable(rounded(accentButton ? color(R.color.accent)
+                : color(R.color.accent_soft), dp(24)), dp(24)));
+        lockSecondary.setVisibility(st.phase == FocusLock.Phase.UNLOCKED ? View.VISIBLE : View.GONE);
+
+        waitChips.setVisibility(chooseWait ? View.VISIBLE : View.GONE);
+        for (int i = 0; i < waitChips.getChildCount(); i++) {
+            TextView chip = (TextView) waitChips.getChildAt(i);
+            boolean selected = (int) chip.getTag() == waitMin;
+            chip.setTextColor(selected ? Color.WHITE : color(R.color.accent));
+            chip.setBackground(pressable(rounded(selected ? color(R.color.accent)
+                    : color(R.color.accent_soft), dp(20)), dp(20)));
+        }
+
+        // While locked, hide the shortcut to Android's Accessibility settings (one less easy way out).
+        boolean locked = st.phase == FocusLock.Phase.LOCKED || st.phase == FocusLock.Phase.WAITING;
+        statusButton.setVisibility(serviceOn && locked ? View.GONE : View.VISIBLE);
     }
 
     private View setupSteps() {

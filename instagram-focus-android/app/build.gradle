@@ -10,8 +10,8 @@ android {
         applicationId "com.instagramfocus"
         minSdk 27
         targetSdk 35
-        versionCode 4
-        versionName "1.3"
+        versionCode 5
+        versionName "1.4"
     }
 
     // Release signing key lives outside the repo (see README: "Signing key").
@@ -39,6 +39,11 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt")
             signingConfig keyPropsFile.exists() ? signingConfigs.release : null
         }
+    }
+
+    lint {
+        // English-only app; text isn't set up for translation.
+        disable "SetTextI18n"
     }
 
     testOptions {

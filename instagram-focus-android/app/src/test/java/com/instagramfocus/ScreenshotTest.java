@@ -30,6 +30,46 @@ public class ScreenshotTest {
     @Test @Config(qualifiers = "+night") public void darkOff() throws Exception { capture("dark-off", false); }
     @Test @Config(qualifiers = "+night") public void darkOn() throws Exception { capture("dark-on", true); }
 
+    @Test public void lightLocked() throws Exception {
+        Prefs.setLockEnabled(RuntimeEnvironment.getApplication(), true);
+        capture("light-locked", true);
+    }
+
+    @Test @Config(qualifiers = "+night") public void darkWaiting() throws Exception {
+        Prefs.setLockEnabled(RuntimeEnvironment.getApplication(), true);
+        Prefs.requestUnlock(RuntimeEnvironment.getApplication());
+        capture("dark-waiting", true);
+    }
+
+    @Test public void lockedSwitchCannotBeTurnedOff() throws Exception {
+        android.app.Application app = RuntimeEnvironment.getApplication();
+        Prefs.setLockEnabled(app, true);
+        MainActivity a = Robolectric.buildActivity(MainActivity.class).setup().get();
+        java.util.List<android.widget.Switch> switches = new java.util.ArrayList<>();
+        collectSwitches(a.getWindow().getDecorView(), switches);
+        org.junit.Assert.assertEquals(2, switches.size());
+        switches.get(1).setChecked(false);
+        org.junit.Assert.assertTrue("switch should snap back on", switches.get(1).isChecked());
+        org.junit.Assert.assertTrue("setting must stay on", Prefs.blockReels(app));
+
+        // After removing the lock, turning it off works.
+        Prefs.setLockEnabled(app, false);
+        switches.get(1).setChecked(false);
+        org.junit.Assert.assertFalse(Prefs.blockReels(app));
+        // Turning it back on works even when locked.
+        Prefs.setLockEnabled(app, true);
+        switches.get(1).setChecked(true);
+        org.junit.Assert.assertTrue(Prefs.blockReels(app));
+    }
+
+    private static void collectSwitches(android.view.View v, java.util.List<android.widget.Switch> out) {
+        if (v instanceof android.widget.Switch) out.add((android.widget.Switch) v);
+        if (v instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) collectSwitches(g.getChildAt(i), out);
+        }
+    }
+
     @Test public void launcherIcon() throws Exception {
         Drawable icon = RuntimeEnvironment.getApplication().getDrawable(R.mipmap.ic_launcher);
         Bitmap bmp = Bitmap.createBitmap(432, 432, Bitmap.Config.ARGB_8888);
